@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Solana Analytics Dashboard | GlintAnalytics</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap');
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background-color: #0e0f19;
+    color: #e1e1e6;
+  }
+  header {
+    background: linear-gradient(90deg, #4e73f8, #00ffa8);
+    padding: 1rem 2rem;
+    text-align: center;
+    color: #0e0f19;
+    font-weight: 600;
+    font-size: 1.8rem;
+    letter-spacing: 2px;
+    box-shadow: 0 4px 10px rgba(0,255,168,0.4);
+  }
+  main {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .stats-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit,minmax(220px,1fr));
+    gap: 1.5rem;
+    margin-bottom: 3rem;
+  }
+  .card {
+    background: #141527;
+    padding: 1.5rem 2rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 24px rgb(0 255 168 / 0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    cursor: default;
+  }
+  .card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 12px 32px rgb(0 255 168 / 0.4);
+  }
+  .card h3 {
+    margin: 0 0 0.5rem 0;
+    font-weight: 600;
+    font-size: 1.2rem;
+  }
+  .card p {
+    margin: 0;
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #00ffa8;
+  }
+  section.charts {
+    background: #141527;
+    border-radius: 15px;
+    padding: 2rem;
+    box-shadow: 0 8px 24px rgb(0 255 168 / 0.15);
+    margin-bottom: 3rem;
+  }
+  section.charts h2 {
+    margin: 0 0 1rem 0;
+    font-weight: 600;
+    font-size: 1.5rem;
+    color: #00ffa8;
+  }
+  .chart-container {
+    margin-top: 1rem;
+  }
+  canvas {
+    width: 100% !important;
+    max-height: 320px;
+    display: block;
+  }
+  .wallet-flow-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+  }
+  .wallet-flow-card {
+    background: #141527;
+    padding: 1.3rem 1.8rem;
+    border-radius: 15px;
+    box-shadow: 0 8px 24px rgb(0 255 168 / 0.15);
+    flex: 1 1 200px;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    color: #00ffa8;
+  }
+  .wallet-flow-icon {
+    font-size: 2rem;
+  }
+  .wallet-flow-info {
+    font-size: 1.3rem;
+    font-weight: 600;
+  }
+  footer {
+    text-align: center;
+    padding: 1rem 1rem 2rem 1rem;
+    color: #565656;
+    font-size: 0.9rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 480px) {
+    header {
+      font-size: 1.4rem;
+      padding: 1rem;
+    }
+    .card p {
+      font-size: 1.4rem;
+    }
+    section.charts {
+      padding: 1rem;
+    }
+  }
+</style>
+</head>
+<body>
+<header>
+  Solana Analytics Dashboard
+</header>
+<main>
+  <section class="stats-cards" aria-label="Key Solana Protocol Statistics">
+    <div class="card" aria-live="polite">
+      <h3>Total Transactions</h3>
+      <p id="total-transactions">...</p>
+    </div>
+    <div class="card" aria-live="polite">
+      <h3>Active Wallets</h3>
+      <p id="active-wallets">...</p>
+    </div>
+    <div class="card" aria-live="polite">
+      <h3>DeFi Total Value Locked</h3>
+      <p id="defi-tvl">...</p>
+    </div>
+    <div class="card" aria-live="polite">
+      <h3>Protocols Count</h3>
+      <p id="protocols-count">...</p>
+    </div>
+  </section>
+  <section class="charts" aria-label="Wallet Flows Over Time">
+    <h2>Wallet Flows Over Time</h2>
+    <div class="chart-container">
+      <canvas id="walletFlowsChart" aria-label="Wallet flows over time chart" role="img"></canvas>
+    </div>
+  </section>
+  <section class="charts" aria-label="DeFi Trends">
+    <h2>DeFi Protocols TVL Trends</h2>
+    <div class="chart-container">
+      <canvas id="defiTrendsChart" aria-label="DeFi trends chart" role="img"></canvas>
+    </div>
+  </section>
+  <section aria-label="Wallet Flow Summary">
+    <h2 style="color:#00ffa8; margin-bottom:1rem;">Wallet Flow Summary</h2>
+    <div class="wallet-flow-stats">
+      <div class="wallet-flow-card">
+        <div class="wallet-flow-icon" aria-hidden="true">📥</div>
+        <div class="wallet-flow-info" id="net-inflow">Net Inflow: ...</div>
+      </div>
+      <div class="wallet-flow-card">
+        <div class="wallet-flow-icon" aria-hidden="true">📤</div>
+        <div class="wallet-flow-info" id="net-outflow">Net Outflow: ...</div>
+      </div>
+      <div class="wallet-flow-card">
+        <div class="wallet-flow-icon" aria-hidden="true">🔄</div>
+        <div class="wallet-flow-info" id="active-wallets-change">Active Wallets Change: ...</div>
+      </div>
+    </div>
+  </section>
+</main>
+<footer>
+  &copy; 2024 GlintAnalytics.com - Solana Insights
+</footer>
+<script>
+  // Simulated mock data for dashboard
+  const dashboardData = {
+    totalTransactions: 18235420,
+    activeWallets: 124305,
+    defiTVL: 7845123.45,
+    protocolsCount: 58,
+    walletFlows: {
+      dates: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+      inflows: [1200, 2300, 3300, 4700, 5400, 6200, 7100, 8000, 8200, 9000, 9800, 10500],
+      outflows: [1100, 2100, 3100, 4200, 5000, 5800, 7100, 7400, 7800, 8600, 9000, 10000]
+    },
+    defiTrends: {
+      protocols: ["Serum", "Raydium", "Mango", "Orca", "Saber"],
+      tvls: [2100000, 1800000, 1300000, 930000, 850000]
+    },
+    netInflow: 1500,
+    netOutflow: 1200,
+    activeWalletsChange: "+2.3%"
+  };
+
+  // Format numbers with commas
+  function formatNumber(num) {
+    return num.toLocaleString(undefined, {maximumFractionDigits:2});
+  }
+  // Format currency with $ and commas
+  function formatUSD(num) {
+    return '$' + num.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0});
+  }
+
+  // Update summary cards
+  document.getElementById('total-transactions').textContent = formatNumber(dashboardData.totalTransactions);
+  document.getElementById('active-wallets').textContent = formatNumber(dashboardData.activeWallets);
+  document.getElementById('defi-tvl').textContent = formatUSD(dashboardData.defiTVL);
+  document.getElementById('protocols-count').textContent = formatNumber(dashboardData.protocolsCount);
+
+  // Update wallet flow summary
+  document.getElementById('net-inflow').textContent = 'Net Inflow: ' + formatNumber(dashboardData.netInflow);
+  document.getElementById('net-outflow').textContent = 'Net Outflow: ' + formatNumber(dashboardData.netOutflow);
+  document.getElementById('active-wallets-change').textContent = 'Active Wallets Change: ' + dashboardData.activeWalletsChange;
+
+  // Lightweight vanilla JS Chart rendering
+  // Wallet Flows Chart (line chart)
+  function drawLineChart(canvasId, labels, inflows, outflows) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    ctx.clearRect(0, 0, width, height);
+
+    // Chart margins
+    const margin = 50;
+    const chartWidth = width - margin * 2;
+    const chartHeight = height - margin * 2;
+
+    // Max Y value from given data
+    const maxY = Math.max(...inflows.concat(outflows)) * 1.1;
+
+    // Draw axes
+    ctx.strokeStyle = '#44475a';
+    ctx.lineWidth = 1;
+
+    // Y axis
+    ctx.beginPath();
+    ctx.moveTo(margin, margin);
+    ctx.lineTo(margin, height - margin);
+    ctx.stroke();
+    // X axis
+    ctx.beginPath();
+    ctx.moveTo(margin, height - margin);
+    ctx.lineTo(width - margin, height - margin);
+    ctx.stroke();
+
+    // Draw Y ticks and labels
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '12px Poppins';
+
+    const yTicks = 5;
+    for (let i = 0; i <= yTicks; i++) {
+      const yVal = maxY * (i / yTicks);
+      const yPos = height - margin - (chartHeight * i / yTicks);
+      ctx.fillText(formatNumber(Math.round(yVal)), margin - 10, yPos);
+      // Draw horizontal grid lines
+      ctx.strokeStyle = '#222633';
+      ctx.beginPath();
+      ctx.moveTo(margin, yPos);
+      ctx.lineTo(width - margin, yPos);
+      ctx.stroke();
+    }
+
+    // Draw X ticks and labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    labels.forEach((label, i) => {
+      const xPos = margin + (chartWidth * i) / (labels.length -1);
+      ctx.fillText(label, xPos, height - margin + 10);
+      // Vertical grid lines
+      ctx.strokeStyle = '#222633';
+      ctx.beginPath();
+      ctx.moveTo(xPos, height - margin);
+      ctx.lineTo(xPos, margin);
+      ctx.stroke();
+    });
+
+    // Function to map data points
+    function mapX(i) {
+      return margin + (chartWidth * i) / (labels.length -1);
+    }
+    function mapY(v) {
+      return height - margin - (v / maxY) * chartHeight;
+    }
+
+    // Draw inflows line
+    ctx.strokeStyle = '#00ffa8';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    inflows.forEach((v, i) => {
+      const x = mapX(i);
+      const y = mapY(v);
+      if(i === 0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    // Draw inflows points
+    ctx.fillStyle = '#00ffa8';
+    inflows.forEach((v,i) => {
+      ctx.beginPath();
+      ctx.arc(mapX(i), mapY(v), 4, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // Draw outflows line
+    ctx.strokeStyle = '#ff4c60';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    outflows.forEach((v,i) => {
+      const x = mapX(i);
+      const y = mapY(v);
+      if(i === 0) ctx.moveTo(x,y);
+      else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    // Draw outflows points
+    ctx.fillStyle = '#ff4c60';
+    outflows.forEach((v,i) => {
+      ctx.beginPath();
+      ctx.arc(mapX(i), mapY(v), 4, 0, Math.PI*2);
+      ctx.fill();
+    });
+
+    // Legend
+    ctx.font = '14px Poppins';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#00ffa8';
+    ctx.fillRect(width - margin - 110, margin + 10, 12, 12);
+    ctx.fillStyle = '#e1e1e6';
+    ctx.fillText('Inflows', width - margin - 90, margin + 21);
+
+    ctx.fillStyle = '#ff4c60';
+    ctx.fillRect(width - margin - 110, margin + 30, 12, 12);
+    ctx.fillStyle = '#e1e1e6';
+    ctx.fillText('Outflows', width - margin - 90, margin + 41);
+  }
+
+  // DeFi Trends Chart (bar chart)
+  function drawBarChart(canvasId, labels, values) {
+    const canvas = document.getElementById(canvasId);
+    const ctx = canvas.getContext('2d');
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+
+    ctx.clearRect(0, 0, width, height);
+
+    const margin = 50;
+    const chartWidth = width - margin * 2;
+    const chartHeight = height - margin * 2;
+    const barWidth = chartWidth / values.length * 0.6;
+
+    const maxY = Math.max(...values) * 1.2;
+
+    // Draw axes
+    ctx.strokeStyle = '#44475a';
+    ctx.lineWidth = 1;
+
+    // Y axis
+    ctx.beginPath();
+    ctx.moveTo(margin, margin);
+    ctx.lineTo(margin, height - margin);
+    ctx.stroke();
+
+    // X axis
+    ctx.beginPath();
+    ctx.moveTo(margin, height - margin);
+    ctx.lineTo(width - margin, height - margin);
+    ctx.stroke();
+
+    // Y ticks and labels
+    ctx.fillStyle = '#888';
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.font = '12px Poppins';
+
+    const yTicks = 5;
+    for(let i=0; i<=yTicks; i++) {
+      const yVal = maxY * (i/yTicks);
+      const yPos = height - margin - (chartHeight * i / yTicks);
+      ctx.fillText(formatUSD(Math.round(yVal)), margin - 10, yPos);
+      // horizontal grid lines
+      ctx.strokeStyle = '#222633';
+      ctx.beginPath();
+      ctx.moveTo(margin, yPos);
+      ctx.lineTo(width - margin, yPos);
+      ctx.stroke();
+    }
+
+    // X ticks and labels
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    labels.forEach((label, i) => {
+      const xPos = margin + (chartWidth * i) / (labels.length -1) + barWidth / 2;
+      ctx.fillStyle = '#e1e1e6';
+      ctx.fillText(label, xPos, height - margin + 8);
+    });
+
+    // Draw bars
+    ctx.fillStyle = '#00ffa8';
+    values.forEach((v, i) => {
+      const x = margin + (chartWidth * i) / (labels.length -1);
+      const y = height - margin - (v/maxY) * chartHeight;
+      const barHeight = (v/maxY)*chartHeight;
+      ctx.fillRect(x + (barWidth * 0.2), y, barWidth, barHeight);
+    });
+  }
+
+  drawLineChart('walletFlowsChart', dashboardData.walletFlows.dates, dashboardData.walletFlows.inflows, dashboardData.walletFlows.outflows);
+  drawBarChart('defiTrendsChart', dashboardData.defiTrends.protocols, dashboardData.defiTrends.tvls);
+
+</script>
+</body>
+</html>
+
